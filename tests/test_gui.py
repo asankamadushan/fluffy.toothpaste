@@ -299,3 +299,29 @@ def test_apply_exception_sets_failed_status(app, mocker):
     app._apply()
 
     set_status.assert_called_with("Failed — see error dialog.")
+
+
+def test_apply_saves_session_on_success(app, mocker):
+    mocker.patch("gui.stitcher.build", return_value=Path("/tmp/x.png"))
+    mocker.patch("wallpaper.apply")
+    save = mocker.patch("gui.session.save")
+    mocker.patch.object(app, "_set_status")
+    mocker.patch.object(app, "update")
+
+    app.assignments = {"eDP-1": Path("/img.png")}
+    app._apply()
+
+    save.assert_called_once_with(app.assignments)
+
+
+def test_apply_does_not_save_session_on_failure(app, mocker):
+    mocker.patch("gui.stitcher.build", side_effect=RuntimeError("oops"))
+    mocker.patch("gui.messagebox.showerror")
+    save = mocker.patch("gui.session.save")
+    mocker.patch.object(app, "_set_status")
+    mocker.patch.object(app, "update")
+
+    app.assignments = {"eDP-1": Path("/img.png")}
+    app._apply()
+
+    save.assert_not_called()

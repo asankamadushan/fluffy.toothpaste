@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from PIL import ImageTk
 
+import session
 import stitcher
 from monitors import Monitor, virtual_size
 
@@ -28,7 +29,7 @@ class App(tk.Tk):
         self.configure(bg="#1e1e2e")
 
         self.monitors = monitors
-        self.assignments: dict[str, Path] = {}
+        self.assignments: dict[str, Path] = session.load(monitors)
         self.selected: str | None = None
         self._thumbs: dict[str, ImageTk.PhotoImage] = {}  # prevent GC
 
@@ -223,6 +224,7 @@ class App(tk.Tk):
         try:
             path = stitcher.build(self.assignments, self.monitors)
             wallpaper.apply(path)
+            session.save(self.assignments)
             self._set_status("Applied successfully.")
         except Exception as exc:
             messagebox.showerror("Error", str(exc))
