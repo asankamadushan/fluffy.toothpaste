@@ -30,6 +30,7 @@ def app(mocker, two_monitors):
     a.assignments = {}
     a.selected = None
     a._thumbs = {}
+    a._label_vars = {m.name: MagicMock() for m in two_monitors}
     a.canvas = MagicMock()
     a.status = MagicMock()
     return a
@@ -178,6 +179,41 @@ def test_canvas_click_calls_draw_diagram_on_hit(app, two_monitors, mocker):
     x1, y1, x2, y2 = app._monitor_rect(two_monitors[0])
     app._on_canvas_click(_make_event((x1 + x2) // 2, (y1 + y2) // 2))
     draw.assert_called_once()
+
+
+# ── _on_canvas_double_click ───────────────────────────────────────────────
+
+def test_double_click_opens_browse_for_hit_monitor(app, two_monitors, mocker):
+    browse = mocker.patch.object(app, "_browse")
+    x1, y1, x2, y2 = app._monitor_rect(two_monitors[0])
+    app._on_canvas_double_click(_make_event((x1 + x2) // 2, (y1 + y2) // 2))
+    browse.assert_called_once_with(
+        two_monitors[0], app._label_vars[two_monitors[0].name]
+    )
+
+
+def test_double_click_second_monitor_opens_browse_for_it(app, two_monitors, mocker):
+    browse = mocker.patch.object(app, "_browse")
+    x1, y1, x2, y2 = app._monitor_rect(two_monitors[1])
+    app._on_canvas_double_click(_make_event((x1 + x2) // 2, (y1 + y2) // 2))
+    browse.assert_called_once_with(
+        two_monitors[1], app._label_vars[two_monitors[1].name]
+    )
+
+
+def test_double_click_outside_all_rects_does_nothing(app, two_monitors, mocker):
+    browse = mocker.patch.object(app, "_browse")
+    app._on_canvas_double_click(_make_event(-5, -5))
+    browse.assert_not_called()
+
+
+def test_double_click_passes_correct_label_var(app, two_monitors, mocker):
+    """label_var passed must be the one keyed to the clicked monitor."""
+    browse = mocker.patch.object(app, "_browse")
+    x1, y1, x2, y2 = app._monitor_rect(two_monitors[1])
+    app._on_canvas_double_click(_make_event((x1 + x2) // 2, (y1 + y2) // 2))
+    _, passed_var = browse.call_args[0]
+    assert passed_var is app._label_vars[two_monitors[1].name]
 
 
 # ── _browse ───────────────────────────────────────────────────────────────
