@@ -1,0 +1,232 @@
+"""Main application window."""
+
+from __future__ import annotations
+
+import logging
+import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
+
+from PIL import ImageTk
+
+import stitcher
+from monitors import Monitor, virtual_size
+
+_log = logging.getLogger(__name__)
+
+# Canvas dimensions for the monitor diagram
+DIAGRAM_W = 700
+DIAGRAM_H = 260
+DIAGRAM_PAD = 20
+
+
+class App(tk.Tk):
+    def __init__(self, monitors: list[Monitor]) -> None:
+        super().__init__()
+        self.title("Desktop Background")
+        self.resizable(False, False)
+        self.configure(bg="#1e1e2e")
+
+        self.monitors = monitors
+        self.assignments: dict[str, Path] = {}
+        self.selected: str | None = None
+        self._thumbs: dict[str, ImageTk.PhotoImage] = {}  # prevent GC
+
+        self._build_ui()
+        self._draw_diagram()
+
+    # ── UI Construction ────────────────────────────────────────────────────
+
+    def _build_ui(self) -> None:
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure(".", background="#1e1e2e", foreground="#cdd6f4")
+        style.configure("TButton", background="#313244", foreground="#cdd6f4",
+                        relief="flat", padding=6)
+        style.map("TButton", background=[("active", "#45475a")])
+        style.configure("Apply.TButton", background="#89b4fa", foreground="#1e1e2e")
+        style.map("Apply.TButton", background=[("active", "#74c7ec")])
+
+        # Monitor diagram
+        self.canvas = tk.Canvas(
+            self, width=DIAGRAM_W, height=DIAGRAM_H,
+            bg="#181825", highlightthickness=0,
+        )
+        self.canvas.pack(padx=20, pady=(20, 10))
+        self.canvas.bind("<Button-1>", self._on_canvas_click)
+
+        # Per-monitor rows
+        self.row_frame = tk.Frame(self, bg="#1e1e2e")
+        self.row_frame.pack(fill="x", padx=20, pady=(0, 10))
+        self._build_monitor_rows()
+
+        # Status + Apply
+        bottom = tk.Frame(self, bg="#1e1e2e")
+        bottom.pack(fill="x", padx=20, pady=(0, 20))
+
+        self.status = tk.Label(bottom, text="Select a monitor to begin.",
+                               bg="#1e1e2e", fg="#6c7086", anchor="w")
+        self.status.pack(side="left", fill="x", expand=True)
+
+        ttk.Button(bottom, text="Apply", style="Apply.TButton",
+                   command=self._apply).pack(side="right")
+
+    def _build_monitor_rows(self) -> None:
+        for widget in self.row_frame.winfo_children():
+            widget.destroy()
+
+        headers = tk.Frame(self.row_frame, bg="#1e1e2e")
+        headers.pack(fill="x", pady=(0, 4))
+        for col, text, anchor, w in [
+            (0, "Monitor", "w", 120),
+            (1, "Resolution", "w", 100),
+            (2, "Image", "w", 340),
+            (3, "", "e", 100),
+        ]:
+            tk.Label(headers, text=text, bg="#1e1e2e", fg="#6c7086",
+                     width=w // 8, anchor=anchor).grid(
+                row=0, column=col, sticky="w", padx=(0, 8))
+
+        for monitor in self.monitors:
+            self._monitor_row(monitor)
+
+    def _monitor_row(self, monitor: Monitor) -> None:
+        row = tk.Frame(self.row_frame, bg="#313244")
+        row.pack(fill="x", pady=2)
+
+        name_lbl = tk.Label(
+            row, text=monitor.name + (" ★" if monitor.primary else ""),
+            bg="#313244", fg="#cdd6f4", width=15, anchor="w",
+        )
+        name_lbl.pack(side="left", padx=(8, 0))
+
+        tk.Label(
+            row, text=f"{monitor.width}×{monitor.height}",
+            bg="#313244", fg="#a6adc8", width=12, anchor="w",
+        ).pack(side="left")
+
+        img_var = tk.StringVar(value="—")
+        if monitor.name in self.assignments:
+            img_var.set(self.assignments[monitor.name].name)
+        tk.Label(row, textvariable=img_var, bg="#313244", fg="#89dceb",
+                 width=42, anchor="w").pack(side="left")
+
+        ttk.Button(
+            row, text="Browse",
+            command=lambda m=monitor, v=img_var: self._browse(m, v),
+        ).pack(side="right", padx=4, pady=3)
+        ttk.Button(
+            row, text="Clear",
+            command=lambda m=monitor, v=img_var: self._clear(m, v),
+        ).pack(side="right", padx=(0, 0), pady=3)
+
+    # ── Monitor Diagram ────────────────────────────────────────────────────
+
+    def _scale(self) -> tuple[float, int, int]:
+        vw, vh = virtual_size(self.monitors)
+        usable_w = DIAGRAM_W - DIAGRAM_PAD * 2
+        usable_h = DIAGRAM_H - DIAGRAM_PAD * 2
+        scale = min(usable_w / vw, usable_h / vh)
+        ox = DIAGRAM_PAD + (usable_w - vw * scale) // 2
+        oy = DIAGRAM_PAD + (usable_h - vh * scale) // 2
+        return scale, int(ox), int(oy)
+
+    def _monitor_rect(self, m: Monitor) -> tuple[int, int, int, int]:
+        scale, ox, oy = self._scale()
+        x1 = ox + int(m.x * scale)
+        y1 = oy + int(m.y * scale)
+        x2 = x1 + int(m.width * scale)
+        y2 = y1 + int(m.height * scale)
+        return x1, y1, x2, y2
+
+    def _draw_diagram(self) -> None:
+        self.canvas.delete("all")
+        self._thumbs.clear()
+
+        for m in self.monitors:
+            x1, y1, x2, y2 = self._monitor_rect(m)
+            selected = m.name == self.selected
+            fill = "#313244" if not selected else "#1d3461"
+            outline = "#89b4fa" if selected else "#45475a"
+
+            self.canvas.create_rectangle(
+                x1, y1, x2, y2, fill=fill, outline=outline, width=2
+            )
+
+            # Thumbnail
+            if m.name in self.assignments:
+                tw, th = x2 - x1 - 4, y2 - y1 - 4
+                if tw > 0 and th > 0:
+                    try:
+                        thumb = stitcher.thumbnail(self.assignments[m.name], tw, th)
+                        photo = ImageTk.PhotoImage(thumb)
+                        self._thumbs[m.name] = photo
+                        self.canvas.create_image(
+                            x1 + 2, y1 + 2, anchor="nw", image=photo
+                        )
+                    except OSError as exc:
+                        # File missing, permission denied, or unrecognised format
+                        _log.debug("Thumbnail skipped for %s: %s", m.name, exc)
+                    except tk.TclError as exc:
+                        # Tk failed to create the PhotoImage (e.g. display error)
+                        _log.debug("Thumbnail skipped for %s: %s", m.name, exc)
+
+            label = f"{m.name}\n{m.width}×{m.height}"
+            if m.primary:
+                label += "\n[primary]"
+            self.canvas.create_text(
+                (x1 + x2) // 2, (y1 + y2) // 2,
+                text=label, fill="white", font=("sans-serif", 9),
+                justify="center",
+            )
+
+    def _on_canvas_click(self, event: tk.Event) -> None:  # type: ignore[type-arg]
+        for m in self.monitors:
+            x1, y1, x2, y2 = self._monitor_rect(m)
+            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
+                self.selected = m.name
+                self._draw_diagram()
+                return
+
+    # ── Actions ────────────────────────────────────────────────────────────
+
+    def _browse(self, monitor: Monitor, label_var: tk.StringVar) -> None:
+        path = filedialog.askopenfilename(
+            title=f"Image for {monitor.name}",
+            filetypes=[
+                ("Images", "*.png *.jpg *.jpeg *.bmp *.webp *.tiff *.tif"),
+                ("All files", "*"),
+            ],
+            initialdir=Path.home() / "Pictures",
+        )
+        if path:
+            self.assignments[monitor.name] = Path(path)
+            label_var.set(Path(path).name)
+            self.selected = monitor.name
+            self._draw_diagram()
+            self._set_status(f"{monitor.name} → {Path(path).name}")
+
+    def _clear(self, monitor: Monitor, label_var: tk.StringVar) -> None:
+        self.assignments.pop(monitor.name, None)
+        label_var.set("—")
+        self._draw_diagram()
+
+    def _apply(self) -> None:
+        if not self.assignments:
+            self._set_status("No images assigned.")
+            return
+
+        import wallpaper
+
+        self._set_status("Applying…")
+        self.update()
+        try:
+            path = stitcher.build(self.assignments, self.monitors)
+            wallpaper.apply(path)
+            self._set_status("Applied successfully.")
+        except Exception as exc:
+            messagebox.showerror("Error", str(exc))
+            self._set_status("Failed — see error dialog.")
+
+    def _set_status(self, msg: str) -> None:
+        self.status.configure(text=msg)
