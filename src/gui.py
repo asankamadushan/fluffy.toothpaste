@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from PIL import ImageTk
 
+import prefs
 import session
 import stitcher
 from monitors import Monitor, virtual_size
@@ -35,6 +36,7 @@ class App(tk.Tk):
 
         self.monitors = monitors
         self.assignments: dict[str, Path] = session.load(monitors)
+        self.prefs: dict = prefs.load()
         self.selected: str | None = None
         self._thumbs: dict[str, ImageTk.PhotoImage] = {}  # prevent GC
         self._label_vars: dict[str, tk.StringVar] = {}
@@ -71,6 +73,8 @@ class App(tk.Tk):
         menubar = tk.Menu(self, **_common)
 
         file_menu = tk.Menu(menubar, **_common)
+        _cmd(file_menu, "Preferences", self._show_prefs)
+        file_menu.add_separator()
         _cmd(file_menu, "Exit", self._exit)
 
         help_menu = tk.Menu(menubar, **_common)
@@ -252,7 +256,7 @@ class App(tk.Tk):
                 ("Images", "*.png *.jpg *.jpeg *.bmp *.webp *.tiff *.tif"),
                 ("All files", "*"),
             ],
-            initialdir=Path.home() / "Pictures",
+            initialdir=self.prefs["pictures_dir"],
         )
         if path:
             self.assignments[monitor.name] = Path(path)
@@ -284,6 +288,48 @@ class App(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Error", str(exc))
             self._set_status("Failed — see error dialog.")
+
+    def _show_prefs(self) -> None:
+        """Open the Preferences dialog."""
+        dlg = tk.Toplevel(self)
+        dlg.title("Preferences")
+        dlg.resizable(False, False)
+        dlg.configure(bg="#1e1e2e")
+        dlg.grab_set()
+
+        colors = dict(bg="#1e1e2e", fg="#cdd6f4")
+
+        tk.Label(dlg, text="Default pictures folder", **colors).grid(
+            row=0, column=0, sticky="w", padx=12, pady=(16, 4)
+        )
+
+        dir_var = tk.StringVar(value=self.prefs["pictures_dir"])
+        entry = tk.Entry(dlg, textvariable=dir_var, width=42,
+                         bg="#313244", fg="#cdd6f4",
+                         insertbackground="#cdd6f4", relief="flat")
+        entry.grid(row=1, column=0, padx=12, pady=(0, 4), sticky="ew")
+
+        def _pick() -> None:
+            chosen = filedialog.askdirectory(
+                title="Default pictures folder",
+                initialdir=dir_var.get(),
+            )
+            if chosen:
+                dir_var.set(chosen)
+
+        ttk.Button(dlg, text="Browse…", command=_pick).grid(
+            row=1, column=1, padx=(0, 12), pady=(0, 4)
+        )
+
+        def _save() -> None:
+            self.prefs["pictures_dir"] = dir_var.get()
+            prefs.save(self.prefs)
+            dlg.destroy()
+
+        btn_frame = tk.Frame(dlg, bg="#1e1e2e")
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=(8, 12), padx=12, sticky="e")
+        ttk.Button(btn_frame, text="Cancel", command=dlg.destroy).pack(side="right", padx=(4, 0))
+        ttk.Button(btn_frame, text="Save", style="Apply.TButton", command=_save).pack(side="right")
 
     def _show_about(self) -> None:
         """Show the about dialog."""
