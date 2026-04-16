@@ -2,6 +2,8 @@
 
 Multi-monitor desktop background manager. Set different wallpapers per monitor or stitch one image across all screens.
 
+![Screenshot](screenshot.png)
+
 ## Requirements
 
 - Python 3.14+
