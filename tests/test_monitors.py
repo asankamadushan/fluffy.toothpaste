@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from subprocess import CompletedProcess
-from unittest.mock import MagicMock
 
 import pytest
 
-from monitors import Monitor, _XRANDR_RE, _from_xrandr, get_monitors, virtual_size
+from monitors import _XRANDR_RE, Monitor, _from_xrandr, get_monitors, virtual_size
 
 # ── xrandr regex ──────────────────────────────────────────────────────────
 
@@ -171,17 +170,26 @@ def test_get_monitors_unsupported_platform_raises(mocker):
     ),
     # Side-by-side (width = sum, height = max)
     (
-        [Monitor("A", 0, 0, 1920, 1080, True), Monitor("B", 1920, 0, 2560, 1440, False)],
+        [
+            Monitor("A", 0, 0, 1920, 1080, True),
+            Monitor("B", 1920, 0, 2560, 1440, False),
+        ],
         (4480, 1440),
     ),
     # Stacked vertically
     (
-        [Monitor("A", 0, 0, 1920, 1080, True), Monitor("B", 0, 1080, 1920, 1080, False)],
+        [
+            Monitor("A", 0, 0, 1920, 1080, True),
+            Monitor("B", 0, 1080, 1920, 1080, False),
+        ],
         (1920, 2160),
     ),
     # Primary not at origin
     (
-        [Monitor("A", 1920, 1080, 1920, 1080, True), Monitor("B", 0, 0, 1920, 1080, False)],
+        [
+            Monitor("A", 1920, 1080, 1920, 1080, True),
+            Monitor("B", 0, 0, 1920, 1080, False),
+        ],
         (3840, 2160),
     ),
     # Portrait monitor
@@ -200,7 +208,10 @@ def test_get_monitors_unsupported_platform_raises(mocker):
     ),
     # Portrait beside landscape
     (
-        [Monitor("A", 0,    0, 1920, 1080, True), Monitor("B", 1920, 0, 1080, 1920, False)],
+        [
+            Monitor("A", 0, 0, 1920, 1080, True),
+            Monitor("B", 1920, 0, 1080, 1920, False),
+        ],
         (3000, 1920),
     ),
 ])

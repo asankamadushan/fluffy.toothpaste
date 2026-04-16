@@ -31,7 +31,9 @@ def test_save_writes_valid_json(tmp_image_file, single_monitor):
     assert data["assignments"][single_monitor.name] == str(tmp_image_file)
 
 
-def test_save_creates_parent_directory(mocker, tmp_path, tmp_image_file, single_monitor):
+def test_save_creates_parent_directory(
+    mocker, tmp_path, tmp_image_file, single_monitor
+):
     nested = tmp_path / "a" / "b" / "session.json"
     mocker.patch("session.SESSION_FILE", new=nested)
     save({single_monitor.name: tmp_image_file})
@@ -87,7 +89,9 @@ def test_load_filters_missing_image_file(tmp_path, single_monitor):
     assert load([single_monitor]) == {}
 
 
-def test_load_filters_disconnected_monitor(tmp_image_file, single_monitor, make_monitor):
+def test_load_filters_disconnected_monitor(
+    tmp_image_file, single_monitor, make_monitor
+):
     save({single_monitor.name: tmp_image_file})
     other = make_monitor(name="DP-99")  # different monitor connected now
     assert load([other]) == {}
@@ -105,7 +109,9 @@ def test_load_partial_valid_returns_subset(tmp_image_file, tmp_path, two_monitor
     assert result[two_monitors[0].name] == tmp_image_file
 
 
-def test_load_skips_disconnected_keeps_connected(tmp_image_file, two_monitors, make_monitor):
+def test_load_skips_disconnected_keeps_connected(
+    tmp_image_file, two_monitors, make_monitor
+):
     assignments = {m.name: tmp_image_file for m in two_monitors}
     save(assignments)
     # Only first monitor is connected now

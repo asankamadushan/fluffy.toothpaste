@@ -7,10 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import gui as gui_module
 from gui import DIAGRAM_H, DIAGRAM_PAD, DIAGRAM_W, App
-from monitors import Monitor, virtual_size
-
+from monitors import virtual_size
 
 # ── Headless App fixture ───────────────────────────────────────────────────
 
@@ -33,6 +31,7 @@ def app(mocker, two_monitors):
     a._label_vars = {m.name: MagicMock() for m in two_monitors}
     a.canvas = MagicMock()
     a.status = MagicMock()
+    a.prefs = {"pictures_dir": str(Path.home() / "Pictures")}
     return a
 
 
@@ -70,7 +69,10 @@ def test_scale_returns_three_values(app):
 
 
 def test_scale_width_governs_for_wide_virtual_desktop(app, two_monitors):
-    """two_monitors virtual = 4480×1440; width governs when usable_w/vw < usable_h/vh."""
+    """
+    two_monitors virtual = 4480×1440;
+    width governs when usable_w/vw < usable_h/vh.
+    """
     scale, ox, oy = app._scale()
     vw, vh = virtual_size(two_monitors)
     usable_w = DIAGRAM_W - DIAGRAM_PAD * 2

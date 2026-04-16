@@ -8,7 +8,7 @@ from pathlib import Path
 
 _log = logging.getLogger(__name__)
 
-_PREFS_FILE = Path.home() / ".config" / "desktop-bg-app" / "prefs.json"
+_PREFS_FILE = Path.home() / ".config" / "fluffy.toothpaste" / "prefs.json"
 _DEFAULTS: dict = {
     "pictures_dir": str(Path.home() / "Pictures"),
 }

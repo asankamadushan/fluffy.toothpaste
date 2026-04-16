@@ -10,7 +10,7 @@ from monitors import Monitor
 
 _log = logging.getLogger(__name__)
 
-SESSION_FILE = Path.home() / ".config" / "desktop-bg-app" / "session.json"
+SESSION_FILE = Path.home() / ".config" / "fluffy.toothpaste" / "session.json"
 
 
 def save(assignments: dict[str, Path]) -> None:

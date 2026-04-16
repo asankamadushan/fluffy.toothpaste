@@ -5,12 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from conftest import solid_image
 from PIL import Image
 
-from conftest import solid_image
 from monitors import Monitor
 from stitcher import _cover, build, thumbnail
-
 
 # ── _cover ────────────────────────────────────────────────────────────────
 
@@ -79,7 +78,9 @@ def _patch_cache(mocker, tmp_path) -> Path:
 
 def test_build_returns_cache_path(mocker, tmp_path, tmp_image_file):
     dest = _patch_cache(mocker, tmp_path)
-    result = build({"eDP-1": tmp_image_file}, [Monitor("eDP-1", 0, 0, 1920, 1080, True)])
+    result = build(
+        {"eDP-1": tmp_image_file}, [Monitor("eDP-1", 0, 0, 1920, 1080, True)]
+    )
     assert result == dest
 
 
@@ -97,7 +98,9 @@ def test_build_two_monitors_output_size(mocker, tmp_path, tmp_image_file, two_mo
     assert Image.open(out).size == (4480, 1440)
 
 
-def test_build_portrait_beside_landscape(mocker, tmp_path, tmp_image_file, make_monitor):
+def test_build_portrait_beside_landscape(
+    mocker, tmp_path, tmp_image_file, make_monitor
+):
     _patch_cache(mocker, tmp_path)
     monitors = [
         make_monitor("A", x=0,    width=1920, height=1080),
@@ -107,7 +110,9 @@ def test_build_portrait_beside_landscape(mocker, tmp_path, tmp_image_file, make_
     assert Image.open(out).size == (3000, 1920)
 
 
-def test_build_unassigned_monitor_region_is_black(mocker, tmp_path, tmp_image_file, two_monitors):
+def test_build_unassigned_monitor_region_is_black(
+    mocker, tmp_path, tmp_image_file, two_monitors
+):
     """Un-assigned monitor region stays black (canvas default)."""
     _patch_cache(mocker, tmp_path)
     # Only assign first monitor

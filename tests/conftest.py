@@ -9,7 +9,6 @@ from PIL import Image
 
 from monitors import Monitor
 
-
 # ── Monitor factory ────────────────────────────────────────────────────────
 
 
@@ -63,7 +62,9 @@ def three_monitors_l_shape(make_monitor) -> list[Monitor]:
 # ── Image helpers ──────────────────────────────────────────────────────────
 
 
-def solid_image(width: int, height: int, color: tuple[int, int, int] = (100, 149, 237)) -> Image.Image:
+def solid_image(
+    width: int, height: int, color: tuple[int, int, int] = (100, 149, 237)
+) -> Image.Image:
     """In-memory solid-colour RGB image — no filesystem access."""
     return Image.new("RGB", (width, height), color)
 

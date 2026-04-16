@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -225,8 +225,12 @@ def test_apply_windows(monkeypatch):
         0, mock_winreg.KEY_SET_VALUE,
     )
     key = mock_winreg.OpenKey.return_value
-    mock_winreg.SetValueEx.assert_any_call(key, "WallpaperStyle", 0, mock_winreg.REG_SZ, "22")
-    mock_winreg.SetValueEx.assert_any_call(key, "TileWallpaper", 0, mock_winreg.REG_SZ, "0")
+    mock_winreg.SetValueEx.assert_any_call(
+        key, "WallpaperStyle", 0, mock_winreg.REG_SZ, "22"
+    )
+    mock_winreg.SetValueEx.assert_any_call(
+        key, "TileWallpaper", 0, mock_winreg.REG_SZ, "0"
+    )
     mock_winreg.CloseKey.assert_called_once_with(key)
     mock_ctypes.windll.user32.SystemParametersInfoW.assert_called_once_with(
         20, 0, str(_PATH), 0x01 | 0x02

@@ -1,5 +1,5 @@
 [project]
-name = "desktop-bg-app"
+name = "fluffy.toothpaste"
 version = "0.1.0"
 description = "Multi-monitor desktop background manager"
 requires-python = ">=3.14"

@@ -8,7 +8,7 @@ from PIL import Image
 
 from monitors import Monitor, virtual_size
 
-CACHE_FILE = Path.home() / ".cache" / "desktop-bg-app" / "wallpaper.png"
+CACHE_FILE = Path.home() / ".cache" / "fluffy.toothpaste" / "wallpaper.png"
 
 
 def build(assignments: dict[str, Path], monitors: list[Monitor]) -> Path:

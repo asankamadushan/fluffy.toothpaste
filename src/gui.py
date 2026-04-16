@@ -328,13 +328,17 @@ class App(tk.Tk):
 
         btn_frame = tk.Frame(dlg, bg="#1e1e2e")
         btn_frame.grid(row=2, column=0, columnspan=2, pady=(8, 12), padx=12, sticky="e")
-        ttk.Button(btn_frame, text="Cancel", command=dlg.destroy).pack(side="right", padx=(4, 0))
-        ttk.Button(btn_frame, text="Save", style="Apply.TButton", command=_save).pack(side="right")
+        ttk.Button(
+            btn_frame, text="Cancel", command=dlg.destroy
+        ).pack(side="right", padx=(4, 0))
+        ttk.Button(
+            btn_frame, text="Save", style="Apply.TButton", command=_save
+        ).pack(side="right")
 
     def _show_about(self) -> None:
         """Show the about dialog."""
         try:
-            ver = _pkg_version("desktop-bg-app")
+            ver = _pkg_version("fluffy.toothpaste")
         except Exception:
             ver = "unknown"
         messagebox.showinfo(
