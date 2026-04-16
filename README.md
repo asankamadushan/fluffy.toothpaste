@@ -1,4 +1,4 @@
-# desktop-bg-app
+# fluffy.toothpaste
 
 Multi-monitor desktop background manager. Set different wallpapers per monitor or stitch one image across all screens.
 
@@ -7,26 +7,16 @@ Multi-monitor desktop background manager. Set different wallpapers per monitor o
 - Python 3.14+
 - [uv](https://docs.astral.sh/uv/)
 
-## Setup
+## Usage
 
 ```bash
-uv sync
-```
-
-## Run
-
-```bash
-uv run python src/main.py
-```
-
-## Test
-
-```bash
-uv run pytest
-```
-
-## Lint
-
-```bash
-uv run ruff check src
+make          # show available commands
+make install  # sync dependencies
+make run      # run the app
+make test     # run tests
+make lint     # check for lint errors
+make fix      # auto-fix lint errors
+make format   # format source code
+make check    # lint + test (CI gate)
+make clean    # remove cache artifacts
 ```
