@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Fluffy Toothpaste
+Comment=Multi-monitor desktop background manager
+Exec=fluffy-toothpaste
+Icon=fluffy-toothpaste
+Terminal=false
+Categories=Graphics;Settings;Utility;

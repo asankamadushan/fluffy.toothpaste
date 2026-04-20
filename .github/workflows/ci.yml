@@ -65,3 +65,34 @@ jobs:
           files: test-results/junit.xml
           check_name: Test results
           comment_mode: off
+
+  package-deb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-python: true
+          cache-dependency-glob: |
+            **/uv.lock
+            **/pyproject.toml
+
+      - name: Sync environment (incl. dev — PyInstaller)
+        run: uv sync --locked --all-groups
+
+      - name: Build .deb
+        run: bash packaging/build-deb.sh
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: fluffy-toothpaste-deb
+          path: dist/*.deb
+          retention-days: 30
+          if-no-files-found: error

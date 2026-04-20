@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install run test lint fix format check clean
+.PHONY: help install run test lint fix format check clean dist deb
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
@@ -26,6 +26,12 @@ format: ## Format source code
 
 check: lint test ## Lint + test (CI gate)
 
+dist: install ## Build PyInstaller onedir under dist/fluffy-toothpaste
+	uv run pyinstaller packaging/fluffy.toothpaste.spec --noconfirm
+
+deb: ## Build .deb (runs PyInstaller + dpkg-deb)
+	bash packaging/build-deb.sh
+
 clean: ## Remove cache artifacts
 	find . -type d -name '__pycache__' -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache
+	rm -rf .pytest_cache .ruff_cache build dist .deb-staging

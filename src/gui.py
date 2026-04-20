@@ -8,9 +8,10 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from PIL import ImageTk
+from PIL import Image, ImageTk
 
 import prefs
+import resources
 import session
 import stitcher
 from monitors import Monitor, virtual_size
@@ -38,6 +39,9 @@ _FIT_LABELS: tuple[str, ...] = tuple(r[0] for r in _FIT_ROWS)
 _LABEL_TO_FIT: dict[str, str] = {label: key for label, key in _FIT_ROWS}
 _FIT_TO_LABEL: dict[str, str] = {key: label for label, key in _FIT_ROWS}
 
+_WINDOW_ICON_PATH = resources.resource_dir() / "icon.png"
+_WINDOW_ICON_MAX_PX = 256
+
 
 class App(tk.Tk):
     def __init__(self, monitors: list[Monitor]) -> None:
@@ -51,10 +55,31 @@ class App(tk.Tk):
         self.prefs: dict = prefs.load()
         self.selected: str | None = None
         self._thumbs: dict[str, ImageTk.PhotoImage] = {}  # prevent GC
+        self._wm_icon: ImageTk.PhotoImage | None = None  # window icon; must outlive Tk
         self._label_vars: dict[str, tk.StringVar] = {}
+
+        self._set_window_icon()
 
         self._build_ui()
         self._draw_diagram()
+
+    def _set_window_icon(self) -> None:
+        """Load ``icon.png`` from project root for title bar / taskbar (best-effort)."""
+        if not _WINDOW_ICON_PATH.is_file():
+            _log.warning("Window icon not found: %s", _WINDOW_ICON_PATH)
+            return
+        try:
+            img = Image.open(_WINDOW_ICON_PATH).convert("RGBA")
+            w, h = img.size
+            if max(w, h) > _WINDOW_ICON_MAX_PX:
+                img.thumbnail(
+                    (_WINDOW_ICON_MAX_PX, _WINDOW_ICON_MAX_PX),
+                    Image.Resampling.LANCZOS,
+                )
+            self._wm_icon = ImageTk.PhotoImage(img)
+            self.iconphoto(True, self._wm_icon)
+        except OSError as exc:
+            _log.error("Could not load window icon: %s", exc)
 
     # ── UI Construction ────────────────────────────────────────────────────
 
