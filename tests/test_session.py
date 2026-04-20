@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import session
+import stitcher
 from session import load, save
 
 
@@ -28,7 +29,16 @@ def test_save_writes_valid_json(tmp_image_file, single_monitor):
     save({single_monitor.name: tmp_image_file})
     data = json.loads(session.SESSION_FILE.read_text())
     assert "assignments" in data
+    assert "fit_modes" in data
     assert data["assignments"][single_monitor.name] == str(tmp_image_file)
+    assert isinstance(data["fit_modes"], dict)
+
+
+def test_save_writes_fit_modes(tmp_image_file, single_monitor):
+    fm = {single_monitor.name: stitcher.FIT_SCALED}
+    save({single_monitor.name: tmp_image_file}, fm)
+    data = json.loads(session.SESSION_FILE.read_text())
+    assert data["fit_modes"][single_monitor.name] == stitcher.FIT_SCALED
 
 
 def test_save_creates_parent_directory(
@@ -51,42 +61,75 @@ def test_save_empty_assignments():
     save({})
     data = json.loads(session.SESSION_FILE.read_text())
     assert data["assignments"] == {}
+    assert data["fit_modes"] == {}
 
 
 # ── load ──────────────────────────────────────────────────────────────────
 
 def test_load_missing_file_returns_empty(single_monitor):
-    assert load([single_monitor]) == {}
+    assigns, fits = load([single_monitor])
+    assert assigns == {}
+    assert fits == {single_monitor.name: stitcher.DEFAULT_FIT_MODE}
 
 
 def test_load_round_trips(tmp_image_file, single_monitor):
     save({single_monitor.name: tmp_image_file})
-    result = load([single_monitor])
+    result, fits = load([single_monitor])
     assert result == {single_monitor.name: tmp_image_file}
+    assert fits[single_monitor.name] == stitcher.DEFAULT_FIT_MODE
+
+
+def test_load_fit_modes_round_trip(tmp_image_file, single_monitor):
+    save(
+        {single_monitor.name: tmp_image_file},
+        {single_monitor.name: stitcher.FIT_WALLPAPER},
+    )
+    _assigns, fits = load([single_monitor])
+    assert fits[single_monitor.name] == stitcher.FIT_WALLPAPER
+
+
+def test_load_invalid_fit_mode_falls_back_to_default(tmp_image_file, single_monitor):
+    session.SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    session.SESSION_FILE.write_text(
+        json.dumps(
+            {
+                "assignments": {single_monitor.name: str(tmp_image_file)},
+                "fit_modes": {single_monitor.name: "not_a_real_mode"},
+            }
+        )
+    )
+    _a, fits = load([single_monitor])
+    assert fits[single_monitor.name] == stitcher.DEFAULT_FIT_MODE
 
 
 def test_load_returns_path_objects(tmp_image_file, single_monitor):
     save({single_monitor.name: tmp_image_file})
-    result = load([single_monitor])
+    result, _fits = load([single_monitor])
     assert isinstance(result[single_monitor.name], Path)
 
 
 def test_load_corrupted_json_returns_empty(single_monitor):
     session.SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     session.SESSION_FILE.write_text("{ not valid json }")
-    assert load([single_monitor]) == {}
+    assigns, fits = load([single_monitor])
+    assert assigns == {}
+    assert fits == {single_monitor.name: stitcher.DEFAULT_FIT_MODE}
 
 
 def test_load_wrong_structure_returns_empty(single_monitor):
     session.SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     session.SESSION_FILE.write_text(json.dumps({"wrong_key": {}}))
-    assert load([single_monitor]) == {}
+    assigns, fits = load([single_monitor])
+    assert assigns == {}
+    assert fits == {single_monitor.name: stitcher.DEFAULT_FIT_MODE}
 
 
 def test_load_filters_missing_image_file(tmp_path, single_monitor):
     gone = tmp_path / "deleted.png"
     save({single_monitor.name: gone})  # path does not exist
-    assert load([single_monitor]) == {}
+    assigns, fits = load([single_monitor])
+    assert assigns == {}
+    assert single_monitor.name in fits
 
 
 def test_load_filters_disconnected_monitor(
@@ -94,7 +137,9 @@ def test_load_filters_disconnected_monitor(
 ):
     save({single_monitor.name: tmp_image_file})
     other = make_monitor(name="DP-99")  # different monitor connected now
-    assert load([other]) == {}
+    assigns, fits = load([other])
+    assert assigns == {}
+    assert fits == {other.name: stitcher.DEFAULT_FIT_MODE}
 
 
 def test_load_partial_valid_returns_subset(tmp_image_file, tmp_path, two_monitors):
@@ -104,9 +149,11 @@ def test_load_partial_valid_returns_subset(tmp_image_file, tmp_path, two_monitor
         two_monitors[1].name: gone,             # missing file
     }
     save(assignments)
-    result = load(two_monitors)
+    result, fits = load(two_monitors)
     assert list(result) == [two_monitors[0].name]
     assert result[two_monitors[0].name] == tmp_image_file
+    assert fits[two_monitors[0].name] == stitcher.DEFAULT_FIT_MODE
+    assert fits[two_monitors[1].name] == stitcher.DEFAULT_FIT_MODE
 
 
 def test_load_skips_disconnected_keeps_connected(
@@ -115,5 +162,6 @@ def test_load_skips_disconnected_keeps_connected(
     assignments = {m.name: tmp_image_file for m in two_monitors}
     save(assignments)
     # Only first monitor is connected now
-    result = load([two_monitors[0]])
+    result, fits = load([two_monitors[0]])
     assert list(result) == [two_monitors[0].name]
+    assert fits[two_monitors[0].name] == stitcher.DEFAULT_FIT_MODE

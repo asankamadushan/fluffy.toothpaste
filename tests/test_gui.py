@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import stitcher
 from gui import DIAGRAM_H, DIAGRAM_PAD, DIAGRAM_W, App
 from monitors import virtual_size
 
@@ -26,6 +27,7 @@ def app(mocker, two_monitors):
     a = App.__new__(App)
     a.monitors = two_monitors
     a.assignments = {}
+    a.fit_modes = {m.name: stitcher.DEFAULT_FIT_MODE for m in two_monitors}
     a.selected = None
     a._thumbs = {}
     a._label_vars = {m.name: MagicMock() for m in two_monitors}
@@ -41,6 +43,7 @@ def app_single(mocker, single_monitor):
     a = App.__new__(App)
     a.monitors = [single_monitor]
     a.assignments = {}
+    a.fit_modes = {single_monitor.name: stitcher.DEFAULT_FIT_MODE}
     a.selected = None
     a._thumbs = {}
     a.canvas = MagicMock()
@@ -54,6 +57,7 @@ def app_portrait(mocker, portrait_monitor):
     a = App.__new__(App)
     a.monitors = [portrait_monitor]
     a.assignments = {}
+    a.fit_modes = {portrait_monitor.name: stitcher.DEFAULT_FIT_MODE}
     a.selected = None
     a._thumbs = {}
     a.canvas = MagicMock()
@@ -297,7 +301,7 @@ def test_apply_calls_stitcher_and_wallpaper(app, mocker):
     app.assignments = {"eDP-1": Path("/img.png")}
     app._apply()
 
-    build.assert_called_once_with(app.assignments, app.monitors)
+    build.assert_called_once_with(app.assignments, app.monitors, app.fit_modes)
     wp_apply.assert_called_once_with(fake_path)
 
 
@@ -349,7 +353,7 @@ def test_apply_saves_session_on_success(app, mocker):
     app.assignments = {"eDP-1": Path("/img.png")}
     app._apply()
 
-    save.assert_called_once_with(app.assignments)
+    save.assert_called_once_with(app.assignments, app.fit_modes)
 
 
 def test_apply_does_not_save_session_on_failure(app, mocker):

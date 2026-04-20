@@ -6,6 +6,7 @@ import json
 import logging
 from pathlib import Path
 
+import stitcher
 from monitors import Monitor
 
 _log = logging.getLogger(__name__)
@@ -13,27 +14,48 @@ _log = logging.getLogger(__name__)
 SESSION_FILE = Path.home() / ".config" / "fluffy.toothpaste" / "session.json"
 
 
-def save(assignments: dict[str, Path]) -> None:
+def _default_fit_modes(monitors: list[Monitor]) -> dict[str, str]:
+    return {m.name: stitcher.DEFAULT_FIT_MODE for m in monitors}
+
+
+def save(
+    assignments: dict[str, Path],
+    fit_modes: dict[str, str] | None = None,
+) -> None:
     SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    data = {"assignments": {name: str(path) for name, path in assignments.items()}}
+    fm: dict[str, str] = dict(fit_modes) if fit_modes is not None else {}
+    data = {
+        "assignments": {name: str(path) for name, path in assignments.items()},
+        "fit_modes": fm,
+    }
     SESSION_FILE.write_text(json.dumps(data, indent=2))
 
 
-def load(monitors: list[Monitor]) -> dict[str, Path]:
+def load(monitors: list[Monitor]) -> tuple[dict[str, Path], dict[str, str]]:
     """
-    Return saved assignments that are still valid:
+    Return saved assignments that are still valid, and fit modes per monitor.
+
+    Assignments:
     - image file must exist on disk
     - monitor name must be in the currently connected monitor list
+
+    Fit modes: one entry per connected monitor; invalid or missing keys use
+    the default fit mode.
     """
+    defaults = _default_fit_modes(monitors)
     if not SESSION_FILE.exists():
-        return {}
+        return {}, defaults
 
     try:
         data = json.loads(SESSION_FILE.read_text())
         raw: dict[str, str] = data["assignments"]
     except (json.JSONDecodeError, KeyError, TypeError):
         _log.warning("Session file unreadable, starting fresh: %s", SESSION_FILE)
-        return {}
+        return {}, defaults
+
+    raw_fit = data.get("fit_modes", {})
+    if not isinstance(raw_fit, dict):
+        raw_fit = {}
 
     live_names = {m.name for m in monitors}
     result: dict[str, Path] = {}
@@ -48,4 +70,12 @@ def load(monitors: list[Monitor]) -> dict[str, Path]:
             continue
         result[name] = path
 
-    return result
+    result_fit: dict[str, str] = {}
+    for m in monitors:
+        v = raw_fit.get(m.name, stitcher.DEFAULT_FIT_MODE)
+        if isinstance(v, str) and v in stitcher.VALID_FIT_MODES:
+            result_fit[m.name] = v
+        else:
+            result_fit[m.name] = stitcher.DEFAULT_FIT_MODE
+
+    return result, result_fit

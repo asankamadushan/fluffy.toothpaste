@@ -6,10 +6,22 @@ from pathlib import Path
 
 import pytest
 from conftest import solid_image
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw
 
 from monitors import Monitor
-from stitcher import _cover, build, thumbnail
+from stitcher import (
+    FIT_SCALED,
+    FIT_STRETCHED,
+    FIT_WALLPAPER,
+    FIT_ZOOM,
+    _centered,
+    _contain,
+    _cover,
+    _stretch,
+    _tile,
+    build,
+    thumbnail,
+)
 
 # ── _cover ────────────────────────────────────────────────────────────────
 
@@ -65,6 +77,52 @@ def test_thumbnail_portrait_target(tmp_tall_image_file):
 
 def test_thumbnail_returns_image_instance(tmp_image_file):
     assert isinstance(thumbnail(tmp_image_file, 50, 50), Image.Image)
+
+
+def test_thumbnail_scaled_mode(tmp_image_file):
+    result = thumbnail(tmp_image_file, 100, 100, mode=FIT_SCALED)
+    assert result.size == (100, 100)
+
+
+# ── _contain, _stretch, _centered, _tile ────────────────────────────────────
+
+def test_contain_output_size():
+    img = solid_image(800, 600)
+    result = _contain(img, 1920, 1080)
+    assert result.size == (1920, 1080)
+
+
+def test_contain_letterbox_for_wide_source():
+    """Wide image into square target — top/bottom bars black."""
+    img = solid_image(400, 200, color=(255, 0, 0))
+    result = _contain(img, 100, 100)
+    assert result.getpixel((50, 0)) == (0, 0, 0)
+    assert result.getpixel((50, 99)) == (0, 0, 0)
+
+
+def test_stretch_output_size():
+    result = _stretch(solid_image(200, 100), 100, 100)
+    assert result.size == (100, 100)
+
+
+def test_centered_small_image_black_border():
+    img = solid_image(40, 40, color=(0, 255, 0))
+    result = _centered(img, 100, 100)
+    assert result.getpixel((0, 0)) == (0, 0, 0)
+    assert result.getpixel((50, 50)) == (0, 255, 0)
+
+
+def test_centered_large_image_crops():
+    img = solid_image(200, 200, color=(10, 20, 30))
+    result = _centered(img, 100, 100)
+    assert result.size == (100, 100)
+    assert result.getpixel((50, 50)) == (10, 20, 30)
+
+
+def test_tile_fills_target():
+    tile = solid_image(8, 8, color=(200, 100, 50))
+    result = _tile(tile, 20, 16)
+    assert result.size == (20, 16)
 
 
 # ── build ─────────────────────────────────────────────────────────────────
@@ -153,3 +211,63 @@ def test_build_output_is_valid_png(mocker, tmp_path, tmp_image_file):
     out = build({"eDP-1": tmp_image_file}, [Monitor("eDP-1", 0, 0, 200, 150, True)])
     img = Image.open(out)
     assert img.format == "PNG"
+
+
+def test_build_with_fit_mode_scaled(mocker, tmp_path, tmp_image_file):
+    _patch_cache(mocker, tmp_path)
+    mon = Monitor("eDP-1", 0, 0, 100, 100, True)
+    out = build(
+        {"eDP-1": tmp_image_file},
+        [mon],
+        {"eDP-1": FIT_SCALED},
+    )
+    assert Image.open(out).size == (100, 100)
+
+
+def test_build_invalid_fit_mode_falls_back_to_zoom(mocker, tmp_path, tmp_image_file):
+    _patch_cache(mocker, tmp_path)
+    mon = Monitor("eDP-1", 0, 0, 100, 100, True)
+    out = build(
+        {"eDP-1": tmp_image_file},
+        [mon],
+        {"eDP-1": "invalid_mode_xyz"},
+    )
+    assert Image.open(out).size == (100, 100)
+
+
+def test_build_stretched_vs_zoom_not_identical_for_tall_source(
+    mocker, tmp_path,
+):
+    """Stretched vs cover must differ for tall sources (different vertical handling)."""
+    p = tmp_path / "stripes.png"
+    im = Image.new("RGB", (100, 300))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, 100, 100], fill=(255, 0, 0))
+    d.rectangle([0, 100, 100, 200], fill=(0, 255, 0))
+    d.rectangle([0, 200, 100, 300], fill=(0, 0, 255))
+    im.save(p)
+
+    mon = Monitor("eDP-1", 0, 0, 100, 100, True)
+    dest_zoom = tmp_path / "zoom.png"
+    mocker.patch("stitcher.CACHE_FILE", new=dest_zoom)
+    build({"eDP-1": p}, [mon], {"eDP-1": FIT_ZOOM})
+    img_zoom = Image.open(dest_zoom).copy()
+
+    dest_stretch = tmp_path / "stretch.png"
+    mocker.patch("stitcher.CACHE_FILE", new=dest_stretch)
+    build({"eDP-1": p}, [mon], {"eDP-1": FIT_STRETCHED})
+    img_stretch = Image.open(dest_stretch).copy()
+
+    diff = ImageChops.difference(img_zoom, img_stretch)
+    assert diff.getbbox() is not None
+
+
+def test_build_wallpaper_mode(mocker, tmp_path, tmp_image_file):
+    _patch_cache(mocker, tmp_path)
+    mon = Monitor("eDP-1", 0, 0, 64, 64, True)
+    out = build(
+        {"eDP-1": tmp_image_file},
+        [mon],
+        {"eDP-1": FIT_WALLPAPER},
+    )
+    assert Image.open(out).size == (64, 64)

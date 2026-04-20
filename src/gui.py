@@ -26,6 +26,18 @@ DIAGRAM_W = 700
 DIAGRAM_H = 260
 DIAGRAM_PAD = 20
 
+# User-facing labels (order matches stitcher modes)
+_FIT_ROWS: tuple[tuple[str, str], ...] = (
+    ("Zoom", stitcher.FIT_ZOOM),
+    ("Scaled", stitcher.FIT_SCALED),
+    ("Stretched", stitcher.FIT_STRETCHED),
+    ("Centered", stitcher.FIT_CENTERED),
+    ("Wallpaper", stitcher.FIT_WALLPAPER),
+)
+_FIT_LABELS: tuple[str, ...] = tuple(r[0] for r in _FIT_ROWS)
+_LABEL_TO_FIT: dict[str, str] = {label: key for label, key in _FIT_ROWS}
+_FIT_TO_LABEL: dict[str, str] = {key: label for label, key in _FIT_ROWS}
+
 
 class App(tk.Tk):
     def __init__(self, monitors: list[Monitor]) -> None:
@@ -35,7 +47,7 @@ class App(tk.Tk):
         self.configure(bg="#1e1e2e")
 
         self.monitors = monitors
-        self.assignments: dict[str, Path] = session.load(monitors)
+        self.assignments, self.fit_modes = session.load(monitors)
         self.prefs: dict = prefs.load()
         self.selected: str | None = None
         self._thumbs: dict[str, ImageTk.PhotoImage] = {}  # prevent GC
@@ -94,6 +106,18 @@ class App(tk.Tk):
         style.map("TButton", background=[("active", "#45475a")])
         style.configure("Apply.TButton", background="#89b4fa", foreground="#1e1e2e")
         style.map("Apply.TButton", background=[("active", "#74c7ec")])
+        style.configure(
+            "TCombobox",
+            fieldbackground="#313244",
+            background="#313244",
+            foreground="#cdd6f4",
+            arrowcolor="#cdd6f4",
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", "#313244")],
+            selectbackground=[("readonly", "#45475a")],
+        )
 
         # Monitor diagram
         self.canvas = tk.Canvas(
@@ -129,8 +153,9 @@ class App(tk.Tk):
         for col, text, anchor, w in [
             (0, "Monitor", "w", 120),
             (1, "Resolution", "w", 100),
-            (2, "Image", "w", 340),
-            (3, "", "e", 100),
+            (2, "Fit", "w", 100),
+            (3, "Image", "w", 260),
+            (4, "", "e", 100),
         ]:
             tk.Label(headers, text=text, bg="#1e1e2e", fg="#6c7086",
                      width=w // 8, anchor=anchor).grid(
@@ -155,12 +180,27 @@ class App(tk.Tk):
             bg="#313244", fg="#a6adc8", width=12, anchor="w",
         ).pack(side="left")
 
+        mode = self.fit_modes.get(monitor.name, stitcher.DEFAULT_FIT_MODE)
+        fit_var = tk.StringVar(value=_FIT_TO_LABEL.get(mode, _FIT_LABELS[0]))
+        cb = ttk.Combobox(
+            row,
+            textvariable=fit_var,
+            values=_FIT_LABELS,
+            state="readonly",
+            width=11,
+        )
+        cb.pack(side="left", padx=(4, 8), pady=3)
+        cb.bind(
+            "<<ComboboxSelected>>",
+            lambda _e, name=monitor.name, var=fit_var: self._on_fit_change(name, var),
+        )
+
         img_var = tk.StringVar(value="—")
         if monitor.name in self.assignments:
             img_var.set(self.assignments[monitor.name].name)
         self._label_vars[monitor.name] = img_var
         tk.Label(row, textvariable=img_var, bg="#313244", fg="#89dceb",
-                 width=42, anchor="w").pack(side="left")
+                 width=32, anchor="w").pack(side="left")
 
         ttk.Button(
             row, text="Browse",
@@ -209,7 +249,10 @@ class App(tk.Tk):
                 tw, th = x2 - x1 - 4, y2 - y1 - 4
                 if tw > 0 and th > 0:
                     try:
-                        thumb = stitcher.thumbnail(self.assignments[m.name], tw, th)
+                        mode = self.fit_modes.get(m.name, stitcher.DEFAULT_FIT_MODE)
+                        thumb = stitcher.thumbnail(
+                            self.assignments[m.name], tw, th, mode,
+                        )
                         photo = ImageTk.PhotoImage(thumb)
                         self._thumbs[m.name] = photo
                         self.canvas.create_image(
@@ -270,6 +313,13 @@ class App(tk.Tk):
         label_var.set("—")
         self._draw_diagram()
 
+    def _on_fit_change(self, monitor_name: str, var: tk.StringVar) -> None:
+        label = var.get()
+        key = _LABEL_TO_FIT.get(label, stitcher.DEFAULT_FIT_MODE)
+        self.fit_modes[monitor_name] = key
+        self._draw_diagram()
+        session.save(self.assignments, self.fit_modes)
+
     def _apply(self) -> None:
         """Apply the wallpaper to the monitors."""
         if not self.assignments:
@@ -281,9 +331,9 @@ class App(tk.Tk):
         self._set_status("Applying…")
         self.update()
         try:
-            path = stitcher.build(self.assignments, self.monitors)
+            path = stitcher.build(self.assignments, self.monitors, self.fit_modes)
             wallpaper.apply(path)
-            session.save(self.assignments)
+            session.save(self.assignments, self.fit_modes)
             self._set_status("Applied successfully.")
         except Exception as exc:
             messagebox.showerror("Error", str(exc))
