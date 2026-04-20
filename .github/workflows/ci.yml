@@ -24,8 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # setup-uv publishes v8.1.0-style tags only — there is no floating `v8` tag.
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: "3.14"
           enable-cache: true
