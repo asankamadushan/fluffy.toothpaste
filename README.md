@@ -6,7 +6,7 @@ Multi-monitor desktop background manager. Set different wallpapers per monitor o
 
 ## Requirements
 
-- Python 3.14+
+- Python 3.14+ (CI uses the version in [`.github/actions/setup-uv-with-python/action.yml`](.github/actions/setup-uv-with-python/action.yml))
 - [uv](https://docs.astral.sh/uv/)
 
 ## Usage
@@ -55,3 +55,7 @@ sudo apt install ./dist/fluffy-toothpaste_*_amd64.deb
 ```
 
 `make clean` removes `build/`, `dist/`, and `.deb-staging/` from local builds.
+
+### CI packaging
+
+GitHub Actions builds the `.deb` only from the **Package .deb** workflow (`.github/workflows/package-deb.yml`): it runs when a **GitHub Release is published** and can also be started **manually** from the repository’s **Actions** tab (**Run workflow**). It does not run on ordinary pull requests or branch pushes; those use the **CI** workflow for lint and tests.

@@ -1,0 +1,47 @@
+# Build the Debian package on published releases or when run manually from the Actions tab.
+# Ref: https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows
+name: Package .deb
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: package-deb-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package-deb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Python version: default in .github/actions/setup-uv-with-python/action.yml
+      - name: Install uv and Python
+        uses: ./.github/actions/setup-uv-with-python
+        with:
+          enable-cache: true
+          cache-python: true
+          cache-dependency-glob: |
+            **/uv.lock
+            **/pyproject.toml
+
+      - name: Sync environment (incl. dev — PyInstaller)
+        run: uv sync --locked --all-groups
+
+      - name: Build .deb
+        run: bash packaging/build-deb.sh
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: fluffy-toothpaste-deb
+          path: dist/*.deb
+          retention-days: 30
+          if-no-files-found: error
