@@ -15,11 +15,12 @@ concurrency:
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -30,6 +31,10 @@ jobs:
         with:
           python-version: "3.14"
           enable-cache: true
+          cache-python: true
+          cache-dependency-glob: |
+            **/uv.lock
+            **/pyproject.toml
 
       - name: Sync environment from lockfile
         run: uv sync --locked
@@ -38,4 +43,25 @@ jobs:
         run: uv run ruff check src tests
 
       - name: Pytest
-        run: uv run pytest
+        id: pytest
+        if: success()
+        run: |
+          mkdir -p test-results
+          uv run pytest --junitxml=test-results/junit.xml --tb=short
+
+      - name: Upload test results (JUnit XML)
+        if: ${{ always() && (steps.pytest.outcome == 'success' || steps.pytest.outcome == 'failure') }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: test-results
+          path: test-results/junit.xml
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Publish test results to checks
+        if: ${{ always() && (steps.pytest.outcome == 'success' || steps.pytest.outcome == 'failure') }}
+        uses: EnricoMi/publish-unit-test-result-action@v2.23.0
+        with:
+          files: test-results/junit.xml
+          check_name: Test results
+          comment_mode: off
