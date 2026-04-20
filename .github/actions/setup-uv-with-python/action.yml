@@ -2,23 +2,23 @@
 # Call after actions/checkout.
 name: Setup uv with Python
 description: Runs astral-sh/setup-uv with the repository’s CI Python version.
+inputs:
+  python-version:
+    description: Python interpreter version for uv (default matches project requires-python)
+    default: "3.14"
+  enable-cache:
+    description: Passed to setup-uv enable-cache
+    default: "auto"
+  cache-python:
+    description: Passed to setup-uv cache-python
+    default: "false"
+  cache-dependency-glob:
+    description: Passed to setup-uv cache-dependency-glob
+    default: |
+      **/uv.lock
+      **/pyproject.toml
 runs:
   using: composite
-  inputs:
-    python-version:
-      description: Python interpreter version for uv (default matches project requires-python)
-      default: "3.14"
-    enable-cache:
-      description: Passed to setup-uv enable-cache
-      default: "auto"
-    cache-python:
-      description: Passed to setup-uv cache-python
-      default: "false"
-    cache-dependency-glob:
-      description: Passed to setup-uv cache-dependency-glob
-      default: |
-        **/uv.lock
-        **/pyproject.toml
   steps:
     - name: Install uv and Python
       uses: astral-sh/setup-uv@v8.1.0
