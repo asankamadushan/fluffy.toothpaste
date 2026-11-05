@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # Python version: from .python-version
+      # Python version: default in .github/actions/setup-uv-with-python/action.yml
       - name: Install uv and Python
         uses: ./.github/actions/setup-uv-with-python
         with:
