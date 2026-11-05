@@ -41,7 +41,7 @@ EOF
 chmod 0755 "${STAGING}/usr/bin/fluffy-toothpaste"
 
 cp "${ROOT}/packaging/desktop/fluffy-toothpaste.desktop" "${STAGING}/usr/share/applications/"
-cp "${ROOT}/icon.png" "${STAGING}/usr/share/icons/hicolor/256x256/apps/fluffy-toothpaste.png"
+cp "${ROOT}/fluffy-toothpaste.png" "${STAGING}/usr/share/icons/hicolor/256x256/apps/fluffy-toothpaste.png"
 cp "${ROOT}/packaging/copyright" "${STAGING}/usr/share/doc/fluffy-toothpaste/copyright"
 
 INSTALLED_SIZE="$(du -sk "${STAGING}/usr" | cut -f1)"
