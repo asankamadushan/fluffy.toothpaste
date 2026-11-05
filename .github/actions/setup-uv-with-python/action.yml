@@ -1,14 +1,14 @@
-# Installs uv and a pinned Python for CI. Bump `python-version` here when upgrading CI.
-# Call after actions/checkout.
+# Installs uv and Python for CI. Python defaults to what pyproject's requires-python resolves to;
+# pass `python-version` to override. Call after actions/checkout.
 name: Setup uv with Python
 description: Runs astral-sh/setup-uv with the repository’s CI Python version.
 inputs:
   python-version:
-    description: Python interpreter version for uv (default matches project requires-python)
-    default: "3.14"
+    description: Python interpreter version for uv (empty lets uv resolve it from project requires-python)
+    default: ""
   enable-cache:
     description: Passed to setup-uv enable-cache
-    default: "auto"
+    default: "true"
   cache-python:
     description: Passed to setup-uv cache-python
     default: "false"
@@ -21,7 +21,7 @@ runs:
   using: composite
   steps:
     - name: Install uv and Python
-      uses: astral-sh/setup-uv@v8.1.0
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}

@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # Python version: default in .github/actions/setup-uv-with-python/action.yml
+      # Python version: resolved by uv from pyproject.toml requires-python
       - name: Install uv and Python
         uses: ./.github/actions/setup-uv-with-python
         with:
