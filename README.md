@@ -59,3 +59,9 @@ sudo apt install ./dist/fluffy-toothpaste_*_amd64.deb
 ### CI packaging
 
 GitHub Actions builds the `.deb` only from the **Package .deb** workflow (`.github/workflows/package-deb.yml`): it runs when a **GitHub Release is published** and can also be started **manually** from the repository’s **Actions** tab (**Run workflow**). It does not run on ordinary pull requests or branch pushes; those use the **CI** workflow for lint and tests.
+
+#### Publishing a release
+
+1. Bump `version` in `pyproject.toml` (the `.deb` filename uses it) and merge to `main`.
+2. On GitHub, create a release with a matching tag (`vX.Y.Z`) targeting `main` and publish it.
+3. The workflow builds the package and attaches `fluffy-toothpaste_<version>_amd64.deb` to the release under **Assets**. Manual runs only produce a 30-day workflow artifact.
