@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # Python version: resolved by uv from pyproject.toml requires-python
+      # Python version: from .python-version
       - name: Install uv and Python
         uses: ./.github/actions/setup-uv-with-python
         with:

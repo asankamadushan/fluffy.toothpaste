@@ -1,10 +1,10 @@
-# Installs uv and Python for CI. Python defaults to what pyproject's requires-python resolves to;
+# Installs uv and Python for CI. Python comes from the repo's .python-version;
 # pass `python-version` to override. Call after actions/checkout.
 name: Setup uv with Python
 description: Runs astral-sh/setup-uv with the repository’s CI Python version.
 inputs:
   python-version:
-    description: Python interpreter version for uv (empty lets uv resolve it from project requires-python)
+    description: Python interpreter version for uv (empty uses the project .python-version)
     default: ""
   enable-cache:
     description: Passed to setup-uv enable-cache
